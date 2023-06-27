@@ -118,7 +118,7 @@ class DatabaseSeeder extends Seeder
         }
 
         // Populate trainings and other of the Scandinavian users
-        for ($i = 1; $i <= rand(100, 125); $i++) {
+        for ($i = 1; $i <= rand(100, 200); $i++) {
             $training = Training::factory()->create();
             $training->ratings()->attach(Rating::where('vatsim_rating', '>', 1)->inRandomOrder()->first());
 
@@ -150,8 +150,9 @@ class DatabaseSeeder extends Seeder
                 }
 
                 // And some a exam result
-                if ($i % 7 == 0) {
+                if ($i % 4 == 0) {
                     TrainingExamination::factory()->create([
+                        'examination_date' => fake()->dateTimeBetween($startDate = $training->created_at, $endDate = 'now'),
                         'training_id' => $training->id,
                         'examiner_id' => User::where('id', '!=', $training->user_id)->inRandomOrder()->first(),
                     ]);
