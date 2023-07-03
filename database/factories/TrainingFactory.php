@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\Area;
 use App\Models\Training;
 use App\Models\TrainingExamination;
+use App\Models\TrainingReport;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -31,7 +32,19 @@ class TrainingFactory extends Factory
         if ($status > 1 || $status == -1) {
             $started_at = $this->faker->dateTimeBetween($startDate = '-1 years', $endDate = '-1 months');
         }
-        // And close a select few
+
+        if ($status < 0) {
+            // We'd need to chuck this in together with the seeder
+            $this->closed();
+            $closed_at = fake()->dateTimeBetween($startDate = '-1 years', $endDate = '-1 months');
+        }
+
+        // TODO: does it make sense to handle status like this? should be switch/case tho
+        if ($status == -1) {
+            // FIXME this doesn't work in the definition, understandably enough
+            // TODO move to configure or similarly
+            $this->completed();
+        }
 
         return [
             'user_id' => User::inRandomOrder()->first()->id,
@@ -51,6 +64,22 @@ class TrainingFactory extends Factory
     public function configure(): static
     {
         return $this->afterCreating(function (Training $training) {
+            // Give all non-queued trainings a mentor
+            if ($training->status > 0) {
+                $training->mentors()->attach(
+                    User::whereHas('groups', function ($query) {
+                        $query->where('id', 3);
+                    })->inRandomOrder()->first(),
+                    ['expire_at' => now()->addYears(5)]
+                );
+                TrainingReport::factory()->create([
+                    'training_id' => $training->id,
+                    'written_by_id' => $training->mentors()->inRandomOrder()->first(),
+                ]);
+            } elseif ($training->status == 1) {
+
+            }
+
         });
     }
 
@@ -69,16 +98,21 @@ class TrainingFactory extends Factory
         });
     }
 
+    public function closed(): Factory
+    {
+        return $this->afterCreating(function (Training $training) {
+            $training->closed_at = fake()->dateTimeBetween($startDate = $training->started_at, $endDate = 'now');
+        });
+    }
+
     public function completed(): Factory
     {
-        return $this->state(function (array $attributes) {
+        return $this->afterCreating(function (Training $training) {
             TrainingExamination::factory()->create([
-                'examination_date' => fake()->dateTimeBetween($startDate = $attributes['started_at'], $endDate = 'now'),
-                'training_id' => $attributes['id'],
-                'examiner_id' => User::where('id', '!=', $attributes['user_id'])->inRandomOrder()->first(),
+                'examination_date' => $training->closed_at,
+                'training_id' => $training->id,
+                'examiner_id' => User::where('id', '!=', $training->user_id)->inRandomOrder()->first(),
             ]);
-
-            return ['status' => 1];
         });
     }
 }

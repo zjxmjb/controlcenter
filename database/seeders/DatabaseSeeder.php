@@ -9,7 +9,6 @@ use App\Models\Position;
 use App\Models\Rating;
 use App\Models\Training;
 use App\Models\TrainingExamination;
-use App\Models\TrainingReport;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
@@ -121,20 +120,6 @@ class DatabaseSeeder extends Seeder
         for ($i = 1; $i <= rand(100, 200); $i++) {
             $training = Training::factory()->create();
             $training->ratings()->attach(Rating::where('vatsim_rating', '>', 1)->inRandomOrder()->first());
-
-            // Give all non-queued trainings a mentor
-            if ($training->status > 0) {
-                $training->mentors()->attach(
-                    User::whereHas('groups', function ($query) {
-                        $query->where('id', 3);
-                    })->inRandomOrder()->first(),
-                    ['expire_at' => now()->addYears(5)]
-                );
-                TrainingReport::factory()->create([
-                    'training_id' => $training->id,
-                    'written_by_id' => $training->mentors()->inRandomOrder()->first(),
-                ]);
-            }
 
             // Give all exam awaiting trainings a solo endorsement
             if ($training->status == 3) {
