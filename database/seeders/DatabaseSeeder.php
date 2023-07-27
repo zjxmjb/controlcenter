@@ -9,7 +9,6 @@ use App\Models\Position;
 use App\Models\Rating;
 use App\Models\Training;
 use App\Models\TrainingExamination;
-use App\Models\TrainingReport;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
@@ -118,23 +117,9 @@ class DatabaseSeeder extends Seeder
         }
 
         // Populate trainings and other of the Scandinavian users
-        for ($i = 1; $i <= rand(100, 125); $i++) {
+        for ($i = 1; $i <= rand(100, 200); $i++) {
             $training = Training::factory()->create();
             $training->ratings()->attach(Rating::where('vatsim_rating', '>', 1)->inRandomOrder()->first());
-
-            // Give all non-queued trainings a mentor
-            if ($training->status > 0) {
-                $training->mentors()->attach(
-                    User::whereHas('groups', function ($query) {
-                        $query->where('id', 3);
-                    })->inRandomOrder()->first(),
-                    ['expire_at' => now()->addYears(5)]
-                );
-                TrainingReport::factory()->create([
-                    'training_id' => $training->id,
-                    'written_by_id' => $training->mentors()->inRandomOrder()->first(),
-                ]);
-            }
 
             // Give all exam awaiting trainings a solo endorsement
             if ($training->status == 3) {
@@ -150,8 +135,9 @@ class DatabaseSeeder extends Seeder
                 }
 
                 // And some a exam result
-                if ($i % 7 == 0) {
+                if ($i % 4 == 0) {
                     TrainingExamination::factory()->create([
+                        'examination_date' => fake()->dateTimeBetween($startDate = $training->created_at, $endDate = 'now'),
                         'training_id' => $training->id,
                         'examiner_id' => User::where('id', '!=', $training->user_id)->inRandomOrder()->first(),
                     ]);
